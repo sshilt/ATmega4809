@@ -17,7 +17,11 @@ int main(void)
     while (1)
     {
         // Toggle LED ON/OFF every 1/2 seconds
+<<<<<<< HEAD
         _delay_ms(200);
+=======
+        _delay_ms(500);
+>>>>>>> b9ebdf7edb8848fe2353ff1c8f22cc5547c3984f
         PORTF.OUTTGL = PIN5_bm;
     }
 }

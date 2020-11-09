@@ -184,8 +184,11 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-5fff"/>
         <property key="poweroptions.powerenable" value="false"/>
+<<<<<<< HEAD
         <property key="programmerToGoFilePath"
                   value="/home/dtek0068/MPLABXProjects/W00E00_TestProgram.X/debug/default/W00E00_TestProgram_ptg"/>
+=======
+>>>>>>> b9ebdf7edb8848fe2353ff1c8f22cc5547c3984f
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.preservedataflash" value="false"/>
         <property key="programoptions.preservedataflash.ranges"

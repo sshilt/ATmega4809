@@ -9,14 +9,14 @@
 #include <avr/io.h>
 
 int main(void) {
-    PORTF.DIR |= PIN5_bm; // Set PF5 (LED) as output
-    PORTF.DIR &= ~PIN6_bm; // Set PF6 (switch) as input
+    PORTF.DIRSET = PIN5_bm; // Set PF5 (LED) as output
+    PORTF.DIRCLR = PIN6_bm; // Set PF6 (switch) as input
     while (1) {
         if (PORTF.IN & PIN6_bm) {
-            PORTF.OUT |= PIN5_bm; // If button is pressed turn on LED
+            PORTF.OUTSET = PIN5_bm; // If button is pressed turn on LED
         }
         else {
-            PORTF.OUT &= ~PIN5_bm; // Else keep LED turned off
+            PORTF.OUTCLR = PIN5_bm; // Else keep LED turned off
         }
     }
 }
