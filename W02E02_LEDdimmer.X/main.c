@@ -1,6 +1,11 @@
 /*
  * File:   main.c
- * Author: dtek0068
+ * 
+ * Alternates between dimming and brightening the LED 
+ * every time the button is pressed down. Keeps the brightness state
+ * when button is not pressed
+ * 
+ * Author: Santeri Hiltunen
  *
  * Created on 11 November 2020, 14:53
  */
