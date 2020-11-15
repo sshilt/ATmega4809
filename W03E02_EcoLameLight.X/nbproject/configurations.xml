@@ -162,7 +162,8 @@
       <nEdbgTool>
         <property key="AutoSelectMemRanges" value="auto"/>
         <property key="communication.activationmode" value="nohv"/>
-        <property key="communication.interface" value="updi"/>
+        <property key="communication.interface"
+                  value="${communication.interface.default}"/>
         <property key="communication.speed" value="${communication.speed.default}"/>
         <property key="debugoptions.useswbreakpoints" value="false"/>
         <property key="firmware.path"
@@ -184,8 +185,6 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-5fff"/>
         <property key="poweroptions.powerenable" value="false"/>
-        <property key="programmerToGoFilePath"
-                  value="/home/dtek0068/MPLABXProjects/W02E02_LEDdimmer.X/debug/default/W02E02_LEDdimmer_ptg"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.preservedataflash" value="false"/>
         <property key="programoptions.preservedataflash.ranges"
