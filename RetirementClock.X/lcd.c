@@ -22,6 +22,8 @@
        
 *****************************************************************************/
 
+#define F_CPU 3333333
+
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/pgmspace.h>
