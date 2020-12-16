@@ -1,13 +1,36 @@
 /*
 * File: main.c
-*
-*
+* 
+* Runs a 16x2 LCD, an active buzzer and a button.
+* Uses RTC to generate an interrupt every second that changes the 
+* time and date variables displayed on the screen. LCD has 3 modes:
+* clock and date view, retirement date view, and system runtime view.
+* Button changes between the modes. 
+* Implements accurate time keeping including leap year calculations.
+* 
+* When retirement age is reached, buzzer will sound and a message is displayed.
+* System is reset by changing the time in the console or disconnecting the
+* device.
+* 
+* Commands have been configured to be used by PuTTY with default settings.
+* Implements serial commands:
+*   GET DATETIME
+*   SET DATETIME dd mm yyyy hh mm ss
+*   GET BIRTHDAY
+*   SET BIRTDAY dd mm yyyy
+*   TGL BACKLIGHT
+* 
+* Author: Santeri Hiltunen <sshilt@utu.fi>
+* 
+* 7.12.2020: Basic LCD functionality.
+* 9.12.2020: Complete time keeping.
+* 13.12.2020: Serial interface functionality.
+* 16.12.2020: Optimizations. Retirement alert functional.
 */
 
-
 #define F_CPU 3333333
-#define _BV(bit) (1 << (bit))
-#define MAX_COMMAND_LEN 32
+#define MAX_COMMAND_LEN 32 // Max serial command length
+#define RETIREMENT_AGE 65
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,13 +48,13 @@ void RTC_init(void);
 void display_clock(void);
 void display_countdown(void);
 void display_runtime(void);
-void increment_time(void);
-void increment_minute(void);
-void increment_hour(void);
-void increment_day(void);
-void increment_month(void);
-void increment_year(void);
-void retire(void);
+static inline void increment_time(void);
+static inline void increment_minute(void);
+static inline void increment_hour(void);
+static inline void increment_day(void);
+static inline void increment_month(void);
+static inline void increment_year(void);
+static inline void retire(void);
 void execute_command(char *command);
 
 // Time keeping variables
@@ -47,7 +70,7 @@ volatile uint16_t birth_year = 1965;
 volatile uint8_t birth_month = 12;
 volatile uint8_t birth_day = 31;
 
-// Holds the amount of days in each month
+// Holds the number of days in each month
 static int days_in_month[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 
 // Keeps track of the system runtime (in seconds)
@@ -56,14 +79,11 @@ volatile uint32_t runtime = 0;
 // Keeps track of the current lcd mode (3 possible ones)
 volatile uint8_t lcd_mode = 0;
 
-// Used when turning integer values into displayable arrays
-char buffer[32];
+// Holds position of the array index when building command strings
+volatile uint8_t pos = 0;
 
 // Used to hold a padding value for the LCD
 static char padding[2];
-
-// Holds position of the 
-volatile uint8_t pos = 0;
 
 int main(void)
 {
@@ -86,23 +106,23 @@ int main(void)
     // Set sleep mode
     set_sleep_mode(SLPCTRL_SMODE_IDLE_gc);
     
-    //Initialize USART0
-    USART0_init();
-    
-    // Initialize RTC
-    RTC_init();
-    
     // Initialize LCD
     lcd_init(LCD_DISP_ON);
     // Clear LCD
     lcd_clrscr();
     // Turn on LCD backlight
     PORTB.OUTSET = PIN5_bm;
-   
-
+    
+    //Initialize USART0
+    USART0_init();
+    
+    // Initialize RTC
+    RTC_init();
+           
     // Enable interrupts
     sei();
-    // Superloop just enters sleep mode. Everything works on interrupts
+
+    // Superloop enters sleep mode
     while(1)
     {
         sleep_mode();
@@ -116,10 +136,11 @@ ISR(USART0_RXC_vect)
     USART0.RXDATAH = USART_RXCIF_bm;
     
     char command[MAX_COMMAND_LEN];
-    
+   
     char c;
     c = USART0_readChar();
-        
+    
+    // Build the command array
     if((c != '\n') && (c != '\r'))
     {
         command[pos++] = c;
@@ -130,8 +151,7 @@ ISR(USART0_RXC_vect)
     }
     // PuTTY console ends lines with '\r' when enter is pressed
     if(c == '\r')
-    {
-            
+    {          
         command[pos] = '\0';
         pos = 0;
         execute_command(command);
@@ -158,6 +178,26 @@ ISR(RTC_PIT_vect)
     // Increment the time and date variables
     increment_time();
     
+    // Check if it's time to retire. Exit the ISR if it is
+    if (year >= (birth_year + RETIREMENT_AGE))
+    {
+        if (year > (birth_year + RETIREMENT_AGE))
+        {
+            retire();
+            return;
+        }
+        else if (month >= birth_month)
+        {
+            if (day >= birth_day)
+            {
+                retire();
+                return;
+            }
+        }
+    }
+    // Turn buzzer off
+    PORTA.OUTCLR = PIN7_bm;
+    // Enter the appropriate time showing function
     switch (lcd_mode)
     {
         case 0:
@@ -168,11 +208,10 @@ ISR(RTC_PIT_vect)
             break;
         case 2:
             display_runtime();
-            break;
-            
-    }
+            break;       
+    }    
 }
-
+// RTC initialization. Example code from Microchip's repo
 void RTC_init(void)
 {
     uint8_t temp;
@@ -220,9 +259,12 @@ void RTC_init(void)
         | RTC_PITEN_bm; /* Enable: enabled */
 }
 
-// Displays a clock and date view
+// Displays a time and date view
 void display_clock(void)
 {
+    // Holds time and date variables
+    char buffer[16];
+    
     // Clear LCD
     lcd_clrscr();
     // Pad with a 0 if the value has only a single digit
@@ -255,18 +297,24 @@ void display_clock(void)
     lcd_puts(buffer);
 }
 
-// Displays a countdown to retirement
+// Displays retirement date. TODO: countdown to retirement
 void display_countdown(void)
 {
+    // Holds time and date variables
+    char buffer[16];
     // Clear LCD
     lcd_clrscr();
-    sprintf(buffer, "%d:%d:%d",hour,minute,second);
+    sprintf(buffer, "%d.%d.%d",
+            birth_day, birth_month, birth_year + RETIREMENT_AGE);
     lcd_puts(buffer);
+    lcd_puts("\nRetirement date");
 }
 
-// Displays how long the system has been running
+// Display how long the system has been running
 void display_runtime(void)
 {
+    // Holds time and date variables
+    char buffer[8];
     // Placeholder for conversions
     uint32_t num = runtime;
     
@@ -290,8 +338,8 @@ void display_runtime(void)
     // Calculate and display seconds
     num %= 60;
     sprintf(buffer, "%d", (int)floor(num));
-    lcd_puts(buffer);  
-    
+    lcd_puts(buffer);
+    lcd_puts("\nSystem runtime");
 }
 
 /* Time and date incrementation functions.
@@ -299,7 +347,7 @@ void display_runtime(void)
  * they are reset to 0 and increment_minute() is called. 
  * This method is repeated up to year increments
  */
-void increment_time(void)
+static inline void increment_time(void)
 {
     if (second == 59)
     {
@@ -312,7 +360,7 @@ void increment_time(void)
     }
 }
 
-void increment_minute(void)
+static inline void increment_minute(void)
 {
     if (minute == 59)
     {
@@ -325,7 +373,7 @@ void increment_minute(void)
     }
 }
 
-void increment_hour(void)
+static inline void increment_hour(void)
 {
     if (hour == 23)
     {
@@ -338,7 +386,7 @@ void increment_hour(void)
     }
 }
 
-void increment_day(void)
+static inline void increment_day(void)
 {
     // Check if it's the last day of the month. > handles February 29th
     if (day >= (days_in_month[month - 1]))
@@ -362,7 +410,7 @@ void increment_day(void)
     } 
 }
 
-void increment_month(void)
+static inline void increment_month(void)
 {
     if (month == 12)
     {
@@ -375,49 +423,136 @@ void increment_month(void)
     }
 }
 
-void increment_year(void)
+static inline void increment_year(void)
 {
     year++;
 }
 
-void retire(void)
+static inline void retire(void)
 {
-    lcd_puts("Go home,\n");
+    lcd_clrscr();
+    
+    lcd_gotoxy(4,0);
+    lcd_puts("Go home,");
+    
+    lcd_gotoxy(3,1);
     lcd_puts("old timer!");
-    //PORTA.OUTSET = PIN7_bm;
+    PORTA.OUTSET = PIN7_bm;
 }
 
+// Execute serial terminal commands
 void execute_command(char *command)
 {
-    if(strncmp(command, "SET DATETIME", 12) == 0)
+    /*
+     * Set date and time. Compare first 12 symbols of the command.
+     * Syntax is "SET DATETIME dd mm yyyy hh mm ss".
+     * Incorrect syntax will print garbage values to LCD.
+     */
+    if (strncmp(command, "SET DATETIME", 12) == 0)
     {
         char delim[] = " ";
-
-        char *ptr = strtok(command, delim);
-
+        char *saveptr;
+        char *ptr = strtok_r(command, delim, &saveptr);
+        
+        uint8_t count = 0;
+        
         while(ptr != NULL)
         {
+            /*
+             * Values of the split words are saved as integers.
+             * First 2 words (SET and DATETIME) are saved but overwritten
+             * and never used.
+             */
             uint16_t num;
             sscanf(ptr, "%d", &num);
-            year = num;
-            ptr = strtok(NULL, delim);
+            
+            // Set values from 3rd word onwards (time and date values)
+            switch (count)
+            {
+                case 2:
+                    day = num;
+                    break;
+                case 3:
+                    month = num;
+                    break;
+                case 4:
+                    year = num;
+                    break;
+                case 5:
+                    hour = num;
+                    break;
+                case 6:
+                    minute = num;
+                    break;
+                case 7:
+                    second = num;
+                    break;
+            }
+            // Move onto next case
+            count++;
+            // Save next token to ptr
+            ptr = strtok_r(NULL, delim, &saveptr);
         }
     }
     // Print date and time in the serial console
     else if (strcmp(command, "GET DATETIME") == 0)
     {
-        char datetime[33];
-        
-        sprintf(datetime, "%d.%d.%d %d:%d:%d\r\n",
+        char buffer[33];
+        sprintf(buffer, "%d.%d.%d %d:%d:%d\r\n",
                 day,month,year,hour,minute,second);
         
-        USART0_sendString(datetime);
-    } 
+        USART0_sendString(buffer);
+    }
+    /*
+     * Set birthday. Compare first 12 symbols of the command.
+     * Syntax is "SET BIRTHDAY dd mm yyyy".
+     * Incorrect syntax will print garbage values to LCD.
+     * Works identically to the SET DATETIME -command with fewer arguments
+     */    
+    else if(strncmp(command, "SET BIRTHDAY", 12) == 0)
+    {
+        char delim[] = " ";
+        char *saveptr;
+        char *ptr = strtok_r(command, delim, &saveptr);
+        
+        uint8_t count = 0;
+        
+        while(ptr != NULL)
+        {
+            uint16_t num;
+            sscanf(ptr, "%d", &num);
+            
+            switch (count)
+            {
+                case 2:
+                    birth_day = num;
+                    break;
+                case 3:
+                    birth_month = num;
+                    break;
+                case 4:
+                    birth_year = num;
+                    break;
+            }
+            count++;
+            ptr = strtok_r(NULL, delim, &saveptr);
+        }
+    }
+    // Print birthday to the serial console
+    else if (strcmp(command, "GET BIRTHDAY") == 0)
+    {
+        char buffer[33];
+        sprintf(buffer, "%d.%d.%d\r\n",
+                birth_day, birth_month, birth_year);
+        
+        USART0_sendString(buffer);
+    }    
+    // Toggle the LED backlight bits
     else if (strcmp(command, "TGL BACKLIGHT") == 0)
     {
         PORTB.OUTTGL = PIN5_bm;
         USART0_sendString("BACKLIGHT TOGGLED.\r\n");
-    }     
+    }
     else 
     {
         USART0_sendString("Incorrect command.\r\n");

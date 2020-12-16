@@ -1,8 +1,6 @@
 /* 
- * File:    
- * Author: 
- * Comments:
- * Revision history: 
+ * File: serial.h    
+ * Header file for serial.c functions
  */
 
 void USART0_init(void);
