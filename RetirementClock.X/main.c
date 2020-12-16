@@ -1,32 +1,32 @@
 /*
-* File: main.c
-* 
-* Runs a 16x2 LCD, an active buzzer and a button.
-* Uses RTC to generate an interrupt every second that changes the 
-* time and date variables displayed on the screen. LCD has 3 modes:
-* clock and date view, retirement date view, and system runtime view.
-* Button changes between the modes. 
-* Implements accurate time keeping including leap year calculations.
-* 
-* When retirement age is reached, buzzer will sound and a message is displayed.
-* System is reset by changing the time in the console or disconnecting the
-* device.
-* 
-* Commands have been configured to be used by PuTTY with default settings.
-* Implements serial commands:
-*   GET DATETIME
-*   SET DATETIME dd mm yyyy hh mm ss
-*   GET BIRTHDAY
-*   SET BIRTDAY dd mm yyyy
-*   TGL BACKLIGHT
-* 
-* Author: Santeri Hiltunen <sshilt@utu.fi>
-* 
-* 7.12.2020: Basic LCD functionality.
-* 9.12.2020: Complete time keeping.
-* 13.12.2020: Serial interface functionality.
-* 16.12.2020: Optimizations. Retirement alert functional.
-*/
+ * File: main.c
+ * 
+ * Author: Santeri Hiltunen <sshilt@utu.fi>
+ * 
+ * Runs a 16x2 LCD, an active buzzer and a button.
+ * Uses RTC to generate an interrupt every second that changes the 
+ * time and date variables displayed on the screen. LCD has 3 modes:
+ * clock and date view, retirement date view, and system runtime view.
+ * Button changes between the modes. 
+ * Implements accurate time keeping including leap year calculations.
+ * 
+ * When retirement age is reached, buzzer will sound and a message is displayed.
+ * System is reset by changing the time in the console or disconnecting the
+ * device.
+ * 
+ * Commands have been configured to be used by PuTTY with default settings.
+ * Implements serial commands:
+ *   GET DATETIME
+ *   SET DATETIME dd mm yyyy hh mm ss
+ *   GET BIRTHDAY
+ *   SET BIRTDAY dd mm yyyy
+ *   TGL BACKLIGHT
+ * 
+ * 7.12.2020: Basic LCD functionality.
+ * 9.12.2020: Complete time keeping.
+ * 13.12.2020: Serial interface functionality.
+ * 16.12.2020: Optimizations. Retirement alert functional.
+ */
 
 #define F_CPU 3333333
 #define MAX_COMMAND_LEN 32 // Max serial command length
