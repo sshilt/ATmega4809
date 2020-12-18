@@ -54,7 +54,7 @@ static inline void increment_hour(void);
 static inline void increment_day(void);
 static inline void increment_month(void);
 static inline void increment_year(void);
-static inline void retire(void);
+void retire(void);
 void execute_command(char *command);
 
 // Time keeping variables
@@ -428,7 +428,7 @@ static inline void increment_year(void)
     year++;
 }
 
-static inline void retire(void)
+void retire(void)
 {
     lcd_clrscr();
     
