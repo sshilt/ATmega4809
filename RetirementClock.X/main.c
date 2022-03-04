@@ -1,7 +1,7 @@
 /*
  * File: main.c
  * 
- * Author: Santeri Hiltunen <sshilt@utu.fi>
+ * Author: Santeri Hiltunen
  * 
  * Runs a 16x2 LCD, an active buzzer and a button.
  * Uses RTC to generate an interrupt every second that changes the 
